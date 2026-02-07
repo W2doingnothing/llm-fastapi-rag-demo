@@ -1,10 +1,28 @@
-# app/main.py
-from fastapi import FastAPI
+import uuid
+from fastapi import FastAPI, HTTPException
+from app.schemas import ChatRequest, ChatResponse
 
-# Create the FastAPI application instance
-app = FastAPI()
+app = FastAPI(title="LLM FastAPI RAG Demo")
 
-# Health check endpoint
+
 @app.get("/health")
 def health():
+
     return {"status": "ok"}
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest):
+
+    try:
+
+        trace_id = str(uuid.uuid4())
+
+
+        reply = f"你说的是：{req.message}"
+
+        return ChatResponse(reply=reply, trace_id=trace_id)
+
+    except Exception as e:
+
+        raise HTTPException(status_code=500, detail=f"server error: {e}")
