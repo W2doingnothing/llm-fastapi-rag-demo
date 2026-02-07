@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.schemas import ChatRequest, ChatResponse, ErrorResponse
+from app import llm_client
 
 # ---------- logging 配置 ----------
 logging.basicConfig(
@@ -96,7 +97,7 @@ def chat(req: ChatRequest, request: Request):
     logger.info(f"Chat request received, len={len(req.message)}", extra={"trace_id": trace_id})
 
     # 先做“假 LLM”
-    reply = f"你说的是：{req.message}"
+    reply = llm_client.chat(req.message)
 
     logger.info("Chat reply generated", extra={"trace_id": trace_id})
     return ChatResponse(reply=reply, trace_id=trace_id)
