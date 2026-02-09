@@ -10,6 +10,8 @@ FastAPI 入口：
 
 import logging
 import uuid
+from app.schemas import ChatRequest, ChatResponse, ErrorResponse, ChatStructuredResponse
+from app.llm_client import chat as llm_chat, chat_structured as llm_chat_structured, LLMUpstreamError
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -125,3 +127,35 @@ def chat(req: ChatRequest, request: Request):
         # 细节写日志，不直接返回给用户
         logger.warning(f"LLM upstream error: {e}", extra={"trace_id": trace_id})
         raise HTTPException(status_code=502, detail="LLM upstream error")
+
+@app.post("/chat_structured", response_model=ChatStructuredResponse)
+def chat_structured(req: ChatRequest, request: Request):
+    trace_id = getattr(request.state, "trace_id", "-")
+    logger.info(
+        f"Chat structured request received, len={len(req.message)}",
+        extra={"trace_id": trace_id},
+    )
+
+    try:
+        data = llm_chat_structured(req.message)
+
+        # 服务端二次校验（不信任模型）：用 Pydantic 强约束
+        validated = ChatStructuredResponse(
+            intent=data.get("intent", "other"),
+            answer=str(data.get("answer", "")),
+            confidence=float(data.get("confidence", 0.0)),
+            need_human=bool(data.get("need_human", False)),
+            trace_id=trace_id,
+        )
+
+        logger.info("Chat structured reply generated", extra={"trace_id": trace_id})
+        return validated
+
+    except LLMUpstreamError as e:
+        logger.warning(f"LLM upstream error: {e}", extra={"trace_id": trace_id})
+        raise HTTPException(status_code=502, detail="LLM upstream error")
+
+    except Exception as e:
+        # 如果是 Pydantic 校验失败/类型转换异常，也算服务端处理失败
+        logger.warning(f"Structured validation error: {e}", extra={"trace_id": trace_id})
+        raise HTTPException(status_code=500, detail="Structured response invalid")

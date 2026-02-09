@@ -7,8 +7,11 @@ Pydantic Schemas：定义输入/输出“合同”
 3) /docs 自动生成清晰文档
 """
 
-from pydantic import BaseModel, Field
 
+
+
+from pydantic import BaseModel, Field
+from typing import Literal
 
 class ChatRequest(BaseModel):
     """客户端请求：用户输入"""
@@ -25,4 +28,20 @@ class ErrorResponse(BaseModel):
     """失败响应：统一错误结构（注意：失败不应该混进 reply）"""
     error: str = Field(..., description="错误类型（简短码）")
     message: str = Field(..., description="错误说明（给调用方看的）")
+    trace_id: str = Field(..., description="请求追踪ID")
+
+
+
+class ChatStructuredResponse(BaseModel):
+    """
+    结构化输出：用于“可控”的LLM应用，而不是纯聊天
+    """
+    intent: Literal["question", "coding", "planning", "other"] = Field(
+        ..., description="意图分类"
+    )
+    answer: str = Field(..., description="主回答（可直接展示）")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="模型对本次回答的置信度（0~1）"
+    )
+    need_human: bool = Field(..., description="是否建议人工介入")
     trace_id: str = Field(..., description="请求追踪ID")

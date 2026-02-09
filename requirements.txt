@@ -2,3 +2,6 @@ fastapi
 uvicorn
 python-dotenv
 openai
+json
+Any
+Dict
